@@ -1,14 +1,5 @@
 <?php
 
-/*
-- otestovat ve vic prohlizecich
-- zjednodusit nacitani a ukladani do formulare
-- osetrit *.php soubory - atd.?
-- getAll vracet serazene?
-- deleteEntity getEntity misto getall? vratit pocet souboru etc. pro entitu?
-- predelat entitu na array(1234,1) nebo '1234.1' ?
-*/
-
 /**
  *  Store binary files into directory structure - file metadata are stored in table FILESTORAGE.
  *  Each file is assigned to $entity ($entity can be invoice, order, user etc.) One entity can have multiple files.
