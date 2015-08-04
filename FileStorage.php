@@ -43,6 +43,10 @@ function __construct($rootdir) {
   $this->user = $pclib->app->auth? $pclib->app->auth->getuser() : array();
 }
 
+function onBeforeSave($entity, $file) {}
+
+function onAfterSave($entity, $file, $id) {}
+
 /**
  *  Save file and assign it to the entity.
  *  If file FILE_ID already exists, it is rewritten.
@@ -53,6 +57,8 @@ function __construct($rootdir) {
  * \param $file associative array with file to upload informations. See postedFiles().
  */
 function saveFile($entity, $file) {
+  $this->onBeforeSave($entity, $file);
+  
   if (!$this->hasUploadedFile($file)) {
     $this->updateMeta($entity, $file);
     return;
@@ -86,6 +92,8 @@ function saveFile($entity, $file) {
   ));
   if ($found) $this->delete($found['ID']);
   $id = $this->db->insert($this->TABLE, $newfile);
+
+  $this->onAfterSave($entity, $newfile, $id);
   return $id;
 }
 
@@ -112,8 +120,9 @@ function postedFiles($input_id = null) {
   $posted = $input_id? array($input_id => $_FILES[$input_id]) : (array)$_FILES;
   
   foreach($posted as $id => $data) {
-    if ($data['error'])
+    if ($data['error'] and $data['error'] != UPLOAD_ERR_NO_FILE) {
       $this->errors[$id] = $this->getError($data['error']);
+    }
     if (!$data or $data['size']<=0 or !is_uploaded_file($data['tmp_name'])) continue;
 
     $files[] = array(
@@ -175,9 +184,18 @@ function delete($id) {
   $file = $this->db->select($this->TABLE, pri($id));
   if (!$file) throw new IOException("File not found.");
   $path = $this->rootdir.$file['FILEPATH'];
-  $ok = @unlink($path);
-  if (!$ok) throw new IOException("File '$path' cannot be deleted.");
+  if (file_exists($path)) {
+    $ok = @unlink($path);
+    if (!$ok) throw new IOException("File '$path' cannot be deleted.");
+  }
   $this->db->delete($this->TABLE, pri($id));
+}
+
+/**
+ * Delete all files linked with $entity.
+ */
+function deleteEntity($entity) {
+  $this->deleteAll(array('ENTITY_ID' => $entity[0], 'ENTITY_TYPE' => $entity[1]));
 }
 
 /**
@@ -195,6 +213,12 @@ function output($id, $attachment = false) {
   die();
 }
 
+/**
+ * Check if file is image.
+ */
+function isImage($file) {
+  return (strpos($file['MIMETYPE'], 'image/') === 0);
+}
 
 /**
  * Return list of all files (rows from db-table) according used filter.
@@ -219,11 +243,14 @@ function findOne($filter) {
  * You can use any fields for filtering.
  */
 function getAll($entity) {
-  $filter = array(
-    'ENTITY_ID'=>$entity[0],
-    'ENTITY_TYPE'=>$entity[1],
+/*  $files = $this->db->select_all(
+    "select * from $this->TABLE where ENTITY_ID='{0}' AND ENTITY_TYPE='{1}' order by FILE_ID", 
+    $entity
+  );*/
+  $files = $this->db->select_all(
+    "select * from $this->TABLE where ENTITY_ID='[0]' AND ENTITY_TYPE='[1]' order by FILE_ID", 
+    $entity
   );
-  $files = $this->db->select_all($this->TABLE, $filter);
   return $files;
 }
 
@@ -253,8 +280,35 @@ protected function newFileId($entity) {
 /**
  * Return upload error message.
  */
-function getError($errorno) {
-  return 'Upload failed.';
+function getError($code) {
+  switch ($code) { 
+    case UPLOAD_ERR_INI_SIZE: 
+        $message = "The uploaded file exceeds the upload_max_filesize directive in php.ini";
+        break; 
+    case UPLOAD_ERR_FORM_SIZE: 
+        $message = "The uploaded file exceeds the MAX_FILE_SIZE directive that was specified in the HTML form"; 
+        break; 
+    case UPLOAD_ERR_PARTIAL: 
+        $message = "The uploaded file was only partially uploaded"; 
+        break; 
+    case UPLOAD_ERR_NO_FILE: 
+        $message = "No file was uploaded"; 
+        break; 
+    case UPLOAD_ERR_NO_TMP_DIR: 
+        $message = "Missing a temporary folder"; 
+        break; 
+    case UPLOAD_ERR_CANT_WRITE: 
+        $message = "Failed to write file to disk"; 
+        break; 
+    case UPLOAD_ERR_EXTENSION: 
+        $message = "File upload stopped by extension"; 
+        break; 
+
+    default: 
+        $message = "Unknown upload error"; 
+        break; 
+  } 
+  return $message; 
 }
 
 
