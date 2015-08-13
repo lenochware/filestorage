@@ -69,6 +69,13 @@ function saveFile($entity, $file) {
   $dir = $this->getDir($this->dirNameFormat, $file);
   $filename = $this->getFileName($this->fileNameFormat, $file);
 
+  $found = $this->findOne(array(
+    'ENTITY_ID'  =>$entity[0],
+    'ENTITY_TYPE'=>$entity[1],
+    'FILE_ID'=>$file['FILE_ID'],
+  ));
+  if ($found) $this->delete($found['ID']);
+
   $ok = @move_uploaded_file($file['TMP_NAME'], $this->rootdir.$dir.$filename);
   if (!$ok) throw new IOException("Uploading '".$file['ORIGNAME']."' failed.");
 
@@ -85,12 +92,6 @@ function saveFile($entity, $file) {
   'DT' => date("Y-m-d H:i:s"),
   );
 
-  $found = $this->findOne(array(
-    'ENTITY_ID'  =>$entity[0],
-    'ENTITY_TYPE'=>$entity[1],
-    'FILE_ID'=>$file['FILE_ID'],
-  ));
-  if ($found) $this->delete($found['ID']);
   $id = $this->db->insert($this->TABLE, $newfile);
 
   $this->onAfterSave($entity, $newfile, $id);
@@ -125,9 +126,11 @@ function postedFiles($input_id = null) {
     }
     if (!$data or $data['size']<=0 or !is_uploaded_file($data['tmp_name'])) continue;
 
+    $aId = explode('_',$id);
+
     $files[] = array(
     'INPUT_ID' => $id,
-    'FILE_ID' => (int)array_pop(explode('_',$id)),
+    'FILE_ID' => (int)array_pop($aId),
     'TMP_NAME' => $data['tmp_name'],
     'ORIGNAME' => $data['name'],
     'MIMETYPE' => $data['type'],
