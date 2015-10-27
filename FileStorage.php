@@ -349,7 +349,7 @@ protected function getDir($format, $file) {
 protected function getFileName($format, $file) {
   $file['ORIGNAME_NORMALIZED'] = $this->normalize($file['ORIGNAME']);
   $file['EXT'] = pathinfo($file['ORIGNAME'], PATHINFO_EXTENSION);
-  $file['HASH'] = randomhash(8);
+  $file['HASH'] = randomstr(8);
   return paramstr($format, $file);
 }
 
